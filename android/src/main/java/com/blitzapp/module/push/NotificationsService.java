@@ -43,14 +43,18 @@ public class NotificationsService extends FirebaseMessagingService {
     public static void setMainActivity(Class activity){
         mainActivity = activity;
     }
+    
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
         message = remoteMessage;
 
-        showNotification();
-        sendMessage();
+        if(message.getNotification() != null){
+            showNotification();
+        }
 
+        sendMessage();
     }
+
     private void sendMessage() {
         try {
             Intent intent = new Intent("notificationReceived");
