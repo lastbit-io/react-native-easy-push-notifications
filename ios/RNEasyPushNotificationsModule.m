@@ -3,8 +3,9 @@
 #import "FirebaseMessaging.h"
 #import "Firebase.h"
 @import UserNotifications;
+
 extern NSString *device_id = NULL;
-extern NSDictionary *remoteNotification = @"NULL";
+extern NSDictionary *remoteNotification = NULL;
 
 @implementation RNEasyPushNotificationsModule
 
@@ -20,11 +21,10 @@ RCT_EXPORT_MODULE(BlitzNotifications);
 }
 
 - (NSArray<NSString *> *)supportedEvents {
-  return @[@"deviceRegistered",@"notificationReceived",@"onNotificationTap"];
+    return @[@"deviceRegistered",@"notificationReceived",@"onNotificationTap"];
 }
 
 RCT_EXPORT_METHOD(removeAllDeliveredNotifications) {
-    
     if (@available(iOS 10.0, *)) {
         UNUserNotificationCenter *notificationCenter = [UNUserNotificationCenter currentNotificationCenter];
         if (notificationCenter != nil) {
@@ -35,23 +35,19 @@ RCT_EXPORT_METHOD(removeAllDeliveredNotifications) {
 
 RCT_EXPORT_METHOD(getLastNotificationData:(RCTResponseSenderBlock)callback)
 {
-  NSLog(@"notificationReceived getLastNotificationData %@",remoteNotification);
-    if(remoteNotification != @"NULL"){
-
-                  callback(@[remoteNotification]);
-            remoteNotification = @"NULL";
+    NSLog(@"notificationReceived getLastNotificationData %@",remoteNotification);
+    if(remoteNotification != NULL){
+        callback(@[remoteNotification]);
+        remoteNotification = NULL;
     }
-  
 }
+
 RCT_EXPORT_METHOD(registerForToken)
 {
   dispatch_async(dispatch_get_main_queue(), ^{
     
       if(device_id == NULL){
       FIRApp *firApp = [FIRApp defaultApp];
-      if(firApp ==  nil){
-    [FIRApp configure];
-      }
      UIApplication *application = UIApplication.sharedApplication;
     [FIRMessaging messaging].delegate = self;
     [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
@@ -80,7 +76,6 @@ RCT_EXPORT_METHOD(registerForToken)
           [self sendEventWithName:@"deviceRegistered" body:device_id];
       }
      });
-  
 }
 
 // [START receive_message]
@@ -160,9 +155,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)notification
 {   NSLog(@"setRemoteNotification %@",notification);
     remoteNotification = notification;
       [self sendEventWithName:@"onNotificationTap" body: remoteNotification];
-  
-//  [self sendEventWithName:@"recievedFDL" body:did];
-//  dynamicLink = did;
 }
 
 - (void)application:(UIApplication *)application didFailToRegisterForRemoteNotificationsWithError:(NSError *)error {
