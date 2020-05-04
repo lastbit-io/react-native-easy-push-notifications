@@ -101,22 +101,23 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
 
-//    completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+    //    completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
     NSLog(@"notificationReceived userNotificationCenter with UNNotificationPresentationOptions: %@", remoteNotification);
     // when we reveive it in foreground
     remoteNotification = notification.request.content.userInfo;
-//    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
+    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
     completionHandler(UNNotificationPresentationOptionNone);
 }
 
 // Handle notification messages after display notification is tapped by the user.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
-didReceiveNotificationResponse:(UNNotificationResponse *)notification
+didReceiveNotificationResponse:(UNNotificationResponse *)response
          withCompletionHandler:(void(^)(void))completionHandler {
     /// when we tap on notif and app is in foreground
-    NSLog(@"notificationReceived didReceiveRemoteNotification with completionhandler: %@", notification);
-    remoteNotification = notification.notification.request.content.userInfo;
-    [self sendEventWithName:@"onNotificationTap" body: remoteNotification];
+    NSDictionary *tapNotification = response.notification.request.content.userInfo;
+    NSLog(@"notificationReceived didReceiveRemoteNotification with completionhandler: %@", tapNotification);
+    remoteNotification = tapNotification;
+    [self sendEventWithName:@"onNotificationTap" body: tapNotification];
     completionHandler();
 }
 
@@ -136,9 +137,9 @@ didReceiveNotificationResponse:(UNNotificationResponse *)notification
 // To enable direct data messages, you can set [Messaging messaging].shouldEstablishDirectChannel to YES.
 
 - (void)messaging:(nonnull FIRMessaging *)messaging didReceiveMessage:(nonnull FIRMessagingRemoteMessage *)remoteMessage {
-  remoteNotification = remoteMessage;
-  NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteMessage);
-  [self sendEventWithName:@"notificationReceived" body: remoteMessage];
+    remoteNotification = remoteMessage;
+    NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteMessage);
+    [self sendEventWithName:@"notificationReceived" body: remoteMessage];
 }
 
 // [END ios_10_data_message]
