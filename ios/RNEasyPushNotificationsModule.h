@@ -7,6 +7,7 @@
 #import <React/RCTEventEmitter.h>
 #import <UserNotifications/UserNotifications.h>
 #import <FirebaseMessaging/FIRMessaging.h>
+
 @interface RNEasyPushNotificationsModule : RCTEventEmitter  <UIApplicationDelegate, RCTBridgeModule, UNUserNotificationCenterDelegate>
 
 - (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)notification
@@ -20,4 +21,3 @@ didReceiveNotificationResponse:(UNNotificationResponse *)notification
 - (void)messaging:(FIRMessaging *)messaging didReceiveMessage:(FIRMessagingRemoteMessage *)notification;
 - (void) setRemoteNotification: (NSDictionary *) notification;
 @end
-  

@@ -1,7 +1,7 @@
 #import "RNEasyPushNotificationsModule.h"
 #import <React/RCTConvert.h>
 #import "FirebaseMessaging.h"
-#import "Firebase.h"
+#import <Firebase/Firebase.h>
 @import UserNotifications;
 
 extern NSString *device_id = NULL;
@@ -45,13 +45,13 @@ RCT_EXPORT_METHOD(getLastNotificationData:(RCTResponseSenderBlock)callback)
 RCT_EXPORT_METHOD(registerForToken)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-        
+
         if(device_id == NULL){
             FIRApp *firApp = [FIRApp defaultApp];
             UIApplication *application = UIApplication.sharedApplication;
             [FIRMessaging messaging].delegate = self;
             [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
-            
+
             if ([UNUserNotificationCenter class] != nil) {
                 [UNUserNotificationCenter currentNotificationCenter].delegate = self;
                 UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert |
@@ -59,18 +59,18 @@ RCT_EXPORT_METHOD(registerForToken)
                 [[UNUserNotificationCenter currentNotificationCenter]
                  requestAuthorizationWithOptions:authOptions
                  completionHandler:^(BOOL granted, NSError * _Nullable error) {
-                    
+
                 }];
             } else {
                 // iOS 10 notifications aren't available; fall back to iOS 8-9 notifications.
-                
+
                 UIUserNotificationType allNotificationTypes =
                 (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
                 UIUserNotificationSettings *settings =
                 [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
                 [application registerUserNotificationSettings:settings];
             }
-            
+
             [application registerForRemoteNotifications];
         } else {
             [self sendEventWithName:@"deviceRegistered" body:device_id];
@@ -100,12 +100,12 @@ fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
          withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
-    
-    completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+
+//    completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
     NSLog(@"notificationReceived userNotificationCenter with UNNotificationPresentationOptions: %@", remoteNotification);
     // when we reveive it in foreground
     remoteNotification = notification.request.content.userInfo;
-    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
+//    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
     completionHandler(UNNotificationPresentationOptionNone);
 }
 
@@ -127,17 +127,18 @@ didReceiveNotificationResponse:(UNNotificationResponse *)notification
     device_id = fcmToken;
     NSLog(@"notificationReceived didReceiveMessage with device_id: %@", device_id);
     [self sendEventWithName:@"deviceRegistered" body:fcmToken];
-    
+
 }
 // [END refresh_token]
 
 // [START ios_10_data_message]
 // Receive data messages on iOS 10+ directly from FCM (bypassing APNs) when the app is in the foreground.
 // To enable direct data messages, you can set [Messaging messaging].shouldEstablishDirectChannel to YES.
-- (void)messaging:(FIRMessaging *)messaging didReceiveMessage:(FIRMessagingRemoteMessage *)notification {
-    remoteNotification = notification;
-    NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteNotification);
-    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
+
+- (void)messaging:(nonnull FIRMessaging *)messaging didReceiveMessage:(nonnull FIRMessagingRemoteMessage *)remoteMessage {
+  remoteNotification = remoteMessage;
+  NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteMessage);
+  [self sendEventWithName:@"notificationReceived" body: remoteMessage];
 }
 
 // [END ios_10_data_message]
