@@ -2,6 +2,7 @@
 #import <React/RCTConvert.h>
 #import "FirebaseMessaging.h"
 #import <Firebase/Firebase.h>
+
 @import UserNotifications;
 
 extern NSString *device_id = NULL;
@@ -45,9 +46,10 @@ RCT_EXPORT_METHOD(getLastNotificationData:(RCTResponseSenderBlock)callback)
 RCT_EXPORT_METHOD(registerForToken)
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-
+        NSLog(@"device_id : %@", device_id);
         if(device_id == NULL){
             FIRApp *firApp = [FIRApp defaultApp];
+            NSLog(@"firApp : %@", firApp);
             UIApplication *application = UIApplication.sharedApplication;
             [FIRMessaging messaging].delegate = self;
             [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
@@ -72,6 +74,7 @@ RCT_EXPORT_METHOD(registerForToken)
             }
 
             [application registerForRemoteNotifications];
+            [self sendEventWithName:@"deviceRegistered" body:device_id];
         } else {
             [self sendEventWithName:@"deviceRegistered" body:device_id];
         }
@@ -141,17 +144,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
     NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteMessage);
     [self sendEventWithName:@"notificationReceived" body: remoteMessage];
 }
-
-// [END ios_10_data_message]
-//- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo
-//{
-//    if ( application.applicationState == UIApplicationStateInactive || application.applicationState == UIApplicationStateBackground  )
-//    {
-//         //opened from a push notification when the app was on background
-//        NSLog(@"userInfo->%@", [userInfo objectForKey:@"aps"]);
-//
-//    }
-//}
 
 -(void) setRemoteNotification:(NSDictionary *) notification
 {   NSLog(@"setRemoteNotification %@",notification);
