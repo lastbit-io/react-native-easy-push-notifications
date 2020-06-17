@@ -3,8 +3,9 @@
 #import "FirebaseMessaging.h"
 #import <Firebase/Firebase.h>
 
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
 @import UserNotifications;
-
+#endif
 extern NSString *device_id = NULL;
 extern NSDictionary *remoteNotification = NULL;
 
@@ -189,24 +190,28 @@ RCT_EXPORT_METHOD(registerForToken)
             [FIRMessaging messaging].delegate = self;
             [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
 
-            if ([UNUserNotificationCenter class] != nil) {
-                // iOS 10 or later
-                // For iOS 10 display notification (sent via APNS)
-                [UNUserNotificationCenter currentNotificationCenter].delegate = self;
-                UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert |
-                UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
-                [[UNUserNotificationCenter currentNotificationCenter]
-                 requestAuthorizationWithOptions:authOptions
-                 completionHandler:^(BOOL granted, NSError * _Nullable error) {
-                    // ...
-                }];
+            if (@available(iOS 10.0, *)) {
+                if ([UNUserNotificationCenter class] != nil) {
+                    // iOS 10 or later
+                    // For iOS 10 display notification (sent via APNS)
+                    [UNUserNotificationCenter currentNotificationCenter].delegate = self;
+                    UNAuthorizationOptions authOptions = UNAuthorizationOptionAlert |
+                    UNAuthorizationOptionSound | UNAuthorizationOptionBadge;
+                    [[UNUserNotificationCenter currentNotificationCenter]
+                     requestAuthorizationWithOptions:authOptions
+                     completionHandler:^(BOOL granted, NSError * _Nullable error) {
+                        // ...
+                    }];
+                } else {
+                    // iOS 10 notifications aren't available; fall back to iOS 8-9 notifications.
+                    UIUserNotificationType allNotificationTypes =
+                    (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
+                    UIUserNotificationSettings *settings =
+                    [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
+                    [application registerUserNotificationSettings:settings];
+                }
             } else {
-                // iOS 10 notifications aren't available; fall back to iOS 8-9 notifications.
-                UIUserNotificationType allNotificationTypes =
-                (UIUserNotificationTypeSound | UIUserNotificationTypeAlert | UIUserNotificationTypeBadge);
-                UIUserNotificationSettings *settings =
-                [UIUserNotificationSettings settingsForTypes:allNotificationTypes categories:nil];
-                [application registerUserNotificationSettings:settings];
+                // Fallback on earlier versions
             }
 
             [application registerForRemoteNotifications];
@@ -236,39 +241,73 @@ RCT_EXPORT_METHOD(registerForToken)
     [self sendEventWithName:@"notificationReceived" body: remoteNotification];
 }
 
-- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)notification
-fetchCompletionHandler:(void (^)(UIBackgroundFetchResult))completionHandler {
-    remoteNotification = notification;
-    NSLog(@"notificationReceived didReceiveRemoteNotification with completionhandler: %@", remoteNotification);
-    [self sendEventWithName:@"onNotificationTap" body: remoteNotification];
-    completionHandler(UIBackgroundFetchResultNewData);
+- (void)application:(UIApplication *)application didReceiveRemoteNotification:(NSDictionary *)userInfo fetchCompletionHandler:(void (^)(UIBackgroundFetchResult result))completionHandler {
+#if __has_include(<FirebaseAuth/FirebaseAuth.h>)
+    if ([[FIRAuth auth] canHandleNotification:userInfo]) {
+        completionHandler(UIBackgroundFetchResultNoData);
+        return;
+    }
+#endif
+
+    if (userInfo[@"gcm.message_id"]) {
+        if ([UIApplication sharedApplication].applicationState == UIApplicationStateBackground) {
+            // TODO add support in a later version for calling completion handler directly from JS when user JS code complete
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t) (25 * NSEC_PER_SEC)), dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_HIGH, 0), ^{
+                completionHandler(UIBackgroundFetchResultNewData);
+            });
+
+            // TODO investigate later - RN bridge gets invalidated at start when in background and a new bridge created - losing all events
+            // TODO   so we just delay sending the event for a few seconds as a workaround
+            // TODO   most likely Remote Debugging causing bridge to be invalidated
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t) (2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                [self sendEventWithName:@"notificationReceived" body: userInfo];
+                completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+            });
+        } else {
+            [self sendEventWithName:@"notificationReceived" body: userInfo];
+            completionHandler(UIBackgroundFetchResultNoData);
+        }
+    }
 }
-// [END receive_message]
 
 // [START ios_10_message_handling]
 // Receive displayed notifications for iOS 10 devices.
 // Handle incoming notification messages while app is in the foreground.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
        willPresentNotification:(UNNotification *)notification
-         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler {
+         withCompletionHandler:(void (^)(UNNotificationPresentationOptions))completionHandler  API_AVAILABLE(ios(10.0)){
 
-    //    completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
-    NSLog(@"notificationReceived userNotificationCenter with UNNotificationPresentationOptions: %@", remoteNotification);
-    // when we reveive it in foreground
-    remoteNotification = notification.request.content.userInfo;
-    [self sendEventWithName:@"notificationReceived" body: remoteNotification];
-    completionHandler(UNNotificationPresentationOptionNone);
+    NSDictionary *userInfo = notification.request.content.userInfo;
+
+    if (userInfo[@"gcm.message_id"]) {
+
+        // With swizzling disabled you must let Messaging know about the message, for Analytics
+        // [[FIRMessaging messaging] appDidReceiveMessage:userInfo];
+
+        // Print message ID.
+        [self sendEventWithName:@"notificationReceived" body: userInfo];
+        // Print full message.
+        NSLog(@"%@", userInfo);
+
+        if ([UIApplication sharedApplication].applicationState == UIApplicationStateBackground) {
+            completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+        } else if ([UIApplication sharedApplication].applicationState == UIApplicationStateInactive) {
+            completionHandler(UNAuthorizationOptionSound | UNAuthorizationOptionAlert | UNAuthorizationOptionBadge);
+        } else {
+            completionHandler(UNNotificationPresentationOptionNone);
+        }
+    }
 }
 
 // Handle notification messages after display notification is tapped by the user.
 - (void)userNotificationCenter:(UNUserNotificationCenter *)center
 didReceiveNotificationResponse:(UNNotificationResponse *)response
-         withCompletionHandler:(void(^)(void))completionHandler {
-    /// when we tap on notif and app is in foreground
-    NSDictionary *tapNotification = response.notification.request.content.userInfo;
-    NSLog(@"notificationReceived didReceiveRemoteNotification with completionhandler: %@", tapNotification);
-    remoteNotification = tapNotification;
-    [self sendEventWithName:@"onNotificationTap" body: tapNotification];
+         withCompletionHandler:(void(^)(void))completionHandler  API_AVAILABLE(ios(10.0)){
+    NSDictionary *userInfo = response.notification.request.content.userInfo;
+    [self sendEventWithName:@"notificationReceived" body: userInfo];
+    // Print full message.
+    NSLog(@"%@", userInfo);
+
     completionHandler();
 }
 
@@ -289,9 +328,18 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 - (void)messaging:(nonnull FIRMessaging *)messaging didReceiveMessage:(nonnull FIRMessagingRemoteMessage *)remoteMessage {
     remoteNotification = remoteMessage;
-    NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", remoteMessage);
-    [self sendEventWithName:@"notificationReceived" body: remoteMessage];
+    NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", [remoteMessage appData]);
+    [self sendEventWithName:@"notificationReceived" body: [remoteMessage appData]];
 }
+
+#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
+// Receive data message on iOS 10 devices while app is in the foreground.
+- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage {
+    // Print full message
+    NSLog(@"%@", [remoteMessage appData]);
+}
+#endif
+
 
 -(void) setRemoteNotification:(NSDictionary *) notification
 {   NSLog(@"setRemoteNotification %@",notification);
