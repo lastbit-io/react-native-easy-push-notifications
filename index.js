@@ -76,6 +76,55 @@ export default {
       )
     }
   },
+  requestPermission(permissions) {
+    if (isAndroid) {
+      return Promise.resolve(1);
+    }
+
+    const defaultPermissions = {
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: true,
+      provisional: false,
+      sound: true,
+    };
+
+    if (!permissions) {
+      return notificationModule.requestPermission(defaultPermissions);
+    }
+
+    if (!isObject(permissions)) {
+      throw new Error('firebase.messaging().requestPermission(*) expected an object value.');
+    }
+
+    Object.entries(permissions).forEach(([key, value]) => {
+      if (!hasOwnProperty(defaultPermissions, key)) {
+        throw new Error(
+          `firebase.messaging().requestPermission(*) unexpected key "${key}" provided to permissions object.`,
+        );
+      }
+
+      if (!isBoolean(value)) {
+        throw new Error(
+          `firebase.messaging().requestPermission(*) the permission "${key}" expected a boolean value.`,
+        );
+      }
+
+      defaultPermissions[key] = value;
+    });
+
+    return notificationModule.requestPermission(defaultPermissions);
+  },
+  hasPermission: () => {
+    return notificationModule.hasPermission();
+  },
+  getToken: () => {
+    return notificationModule.getToken(
+      'messagingSenderId',
+      'FCM',
+    );
+  },
   removeAllDeliveredNotifications: () => {
     notificationModule.removeAllDeliveredNotifications()
   },
