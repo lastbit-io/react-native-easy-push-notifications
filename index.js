@@ -3,22 +3,8 @@ const notificationModule = NativeModules.BlitzNotifications
 const eventEmitter = new NativeEventEmitter(notificationModule)
 
 export default {
-  getDeviceId: (callback) => {
-    // if (Platform.OS === 'android') {
-    //     if (notificationModule) {
-    //         if (notificationModule.registerForToken) {
-    //             notificationModule.registerForToken(deviceId => {
-    //                 callback(deviceId)
-    //             })
-    //         }
-    //     }
-    // } else {
-    let event = eventEmitter.addListener("deviceRegistered", (deviceId) => {
-      callback(deviceId)
-      eventEmitter.removeSubscription(event)
-    })
+  getDeviceId: () => {
     notificationModule.registerForToken()
-    // }
   },
   getLastNotificationData: (callback, errorCallback) => {
     if (Platform.OS === "android") {
@@ -77,9 +63,6 @@ export default {
     }
   },
   requestPermission(permissions) {
-    if (isAndroid) {
-      return Promise.resolve(1);
-    }
 
     const defaultPermissions = {
       alert: true,
@@ -94,23 +77,7 @@ export default {
       return notificationModule.requestPermission(defaultPermissions);
     }
 
-    if (!isObject(permissions)) {
-      throw new Error('firebase.messaging().requestPermission(*) expected an object value.');
-    }
-
     Object.entries(permissions).forEach(([key, value]) => {
-      if (!hasOwnProperty(defaultPermissions, key)) {
-        throw new Error(
-          `firebase.messaging().requestPermission(*) unexpected key "${key}" provided to permissions object.`,
-        );
-      }
-
-      if (!isBoolean(value)) {
-        throw new Error(
-          `firebase.messaging().requestPermission(*) the permission "${key}" expected a boolean value.`,
-        );
-      }
-
       defaultPermissions[key] = value;
     });
 

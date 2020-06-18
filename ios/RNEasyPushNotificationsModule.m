@@ -23,7 +23,7 @@ RCT_EXPORT_MODULE(BlitzNotifications);
 }
 
 - (NSArray<NSString *> *)supportedEvents {
-    return @[@"deviceRegistered",@"notificationReceived",@"onNotificationTap"];
+    return @[@"notificationReceived",@"onNotificationTap"];
 }
 
 RCT_EXPORT_METHOD(removeAllDeliveredNotifications) {
@@ -228,8 +228,6 @@ RCT_EXPORT_METHOD(registerForToken)
             }];
 
             [FIRMessaging messaging].autoInitEnabled = YES;
-        } else {
-            [self sendEventWithName:@"deviceRegistered" body:device_id];
         }
     });
 }
@@ -317,8 +315,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 - (void)messaging:(FIRMessaging *)messaging didReceiveRegistrationToken:(NSString *)fcmToken {
     device_id = fcmToken;
     NSLog(@"notificationReceived didReceiveMessage with device_id: %@", device_id);
-    [self sendEventWithName:@"deviceRegistered" body:fcmToken];
-
 }
 // [END refresh_token]
 
@@ -353,6 +349,5 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 
 - (void)application:(UIApplication *)application didRegisterForRemoteNotificationsWithDeviceToken:(NSData *)deviceToken {
     NSLog(@"APNs device token retrieved: %@", deviceToken);
-    [self sendEventWithName:@"deviceRegistered" body:deviceToken];
 }
 @end
