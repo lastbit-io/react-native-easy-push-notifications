@@ -188,7 +188,6 @@ RCT_EXPORT_METHOD(registerForToken)
             NSLog(@"firApp : %@", firApp);
             UIApplication *application = UIApplication.sharedApplication;
             [FIRMessaging messaging].delegate = self;
-            [FIRMessaging messaging].shouldEstablishDirectChannel = YES;
 
             if (@available(iOS 10.0, *)) {
                 if ([UNUserNotificationCenter class] != nil) {
@@ -317,25 +316,6 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
     NSLog(@"notificationReceived didReceiveMessage with device_id: %@", device_id);
 }
 // [END refresh_token]
-
-// [START ios_10_data_message]
-// Receive data messages on iOS 10+ directly from FCM (bypassing APNs) when the app is in the foreground.
-// To enable direct data messages, you can set [Messaging messaging].shouldEstablishDirectChannel to YES.
-
-- (void)messaging:(nonnull FIRMessaging *)messaging didReceiveMessage:(nonnull FIRMessagingRemoteMessage *)remoteMessage {
-    remoteNotification = remoteMessage;
-    NSLog(@"notificationReceived didReceiveMessage with didReceiveMessage: %@", [remoteMessage appData]);
-    [self sendEventWithName:@"notificationReceived" body: [remoteMessage appData]];
-}
-
-#if defined(__IPHONE_10_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_10_0
-// Receive data message on iOS 10 devices while app is in the foreground.
-- (void)applicationReceivedRemoteMessage:(FIRMessagingRemoteMessage *)remoteMessage {
-    // Print full message
-    NSLog(@"%@", [remoteMessage appData]);
-}
-#endif
-
 
 -(void) setRemoteNotification:(NSDictionary *) notification
 {   NSLog(@"setRemoteNotification %@",notification);
